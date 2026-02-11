@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Bots - Dennis's Platform</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: #e0e0e0; margin: 0; }
+        .container { max-width: 1000px; margin: 20px auto; padding: 0 20px; }
+        .navbar { background: #1e1e1e; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+        .navbar-logo { font-size: 24px; font-weight: bold; color: #ff444f; }
+        .navbar-tabs { display: flex; gap: 10px; flex-wrap: wrap; }
+        .navbar-tabs a { color: #ccc; text-decoration: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; transition: all 0.3s; }
+        .navbar-tabs a:hover, .navbar-tabs a.active { background: #ff444f; color: white; }
+        .balance-display { font-size: 1.4em; color: #4caf50; }
+        .main-content { padding: 20px; }
+        .flashes li { padding: 10px; border-radius: 6px; margin-bottom: 10px; list-style: none; background: #333; }
+        .success { background: #2e7d32; color: white; }
+        .error { background: #c62828; color: white; }
+        .bot-list { margin-top: 30px; }
+        .bot-item { background: #1e1e1e; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .bot-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .bot-title { color: #ff444f; font-size: 1.5em; margin: 0; }
+        .bot-number { font-size: 1.2em; color: #888; margin-right: 10px; }
+        .load-btn { background: #7b1fa2; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .load-btn:hover { background: #9c27b0; }
+        .config-panel { display: none; background: #2c2c2c; padding: 20px; border-radius: 8px; margin-top: 15px; }
+        .config-panel.active { display: block; }
+        .form-group { margin-bottom: 18px; }
+        label { display: block; margin-bottom: 6px; font-weight: bold; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #444; border-radius: 6px; background: #333; color: white; }
+        .btn-start { background: #ff444f; color: white; border: none; padding: 14px; width: 100%; font-size: 1.1em; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .btn-start:hover { background: #e03c45; }
+        .status-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #1e1e1e; color: white; padding: 15px; text-align: center; font-weight: bold; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -4px 15px rgba(0,0,0,0.5); }
+        .status-text { font-size: 1.1em; }
+        .run-btn { background: #4caf50; color: white; padding: 10px 25px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .run-btn:hover { background: #66bb6a; }
+        .connect-box { background: #2c2c2c; padding: 25px; border-radius: 10px; text-align: center; margin: 30px 0; }
+        .connect-btn { background: #ff444f; color: white; padding: 14px 30px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="navbar-logo">Dennis's Bot Platform</div>
+        <div class="navbar-tabs">
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a href="#">Bot Builder</a>
+            <a href="#">Analysis</a>
+            <a href="#">TradeView</a>
+            <a href="{{ url_for('trading_bots') }}" class="active">Bots</a>
+            <a href="#">Signals</a>
+            <a href="#">Charts</a>
+            <a href="#">CopyTrade</a>
+            <a href="#">Markets</a>
+            <a href="#">Strategies</a>
+        </div>
+        <div class="navbar-user">
+            <span class="balance-display">{{ balance_display }}</span>
+            <span onclick="document.body.classList.toggle('dark-mode')" style="cursor: pointer; font-size: 1.3em;">🌙</span>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="main-content">
+            <h1>Trading Bots</h1>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <ul class="flashes">
+                        {% for category, message in messages %}
+                            <li class="{{ category }}">{{ message }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            {% endwith %}
+
+            {% if session.get('username') == 'dennis' %}
+            <div class="admin-section">
+                <h3>Admin: Upload New Bot (.py)</h3>
+                <form method="POST" action="{{ url_for('upload_bot') }}" enctype="multipart/form-data">
+                    <input type="file" name="bot_file" accept=".py" required style="margin-bottom: 10px; width: 100%; padding: 10px; background: #333; color: white; border: 1px solid #444; border-radius: 6px;">
+                    <button type="submit" class="load-btn">Upload Bot</button>
+                </form>
+            </div>
+            {% endif %}
+
+            {% if deriv_connected %}
+                <div class="bot-list">
+                    <h2>Available Bots</h2>
+                    {% if bots %}
+                        {% for bot in bots %}
+                        <div class="bot-item">
+                            <div class="bot-header">
+                                <h3 class="bot-title"><span class="bot-number">{{ loop.index }}.</span> {{ bot }}</h3>
+                                <button class="load-btn" onclick="document.getElementById('config-{{ loop.index0 }}').classList.toggle('active')">Click to Load Bot</button>
+                            </div>
+                            <div id="config-{{ loop.index0 }}" class="config-panel">
+                                <div class="form-group">
+                                    <label>Market</label>
+                                    <select name="market">
+                                        <option>Volatility 75</option>
+                                        <option>Volatility 10</option>
+                                        <option>Volatility 100</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Stake (USD)</label>
+                                    <input type="number" name="stake" min="0.35" step="0.01" value="0.35">
+                                </div>
+                                <div class="form-group">
+                                    <label>Duration (ticks)</label>
+                                    <input type="number" name="duration" min="1" value="1">
+                                </div>
+                                <div class="form-group">
+                                    <label>Contract Type</label>
+                                    <select name="contract_type">
+                                        <option>Both</option>
+                                        <option>Rise</option>
+                                        <option>Fall</option>
+                                        <option>Even</option>
+                                        <option>Odd</option>
+                                    </select>
+                                </div>
+                                <button class="btn-start">Run Bot</button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p style="text-align: center; color: #888;">No bots uploaded yet. Admin, upload some .py files above.</p>
+                    {% endif %}
+                </div>
+            {% else %}
+                <div class="connect-box">
+                    <strong>Connect Deriv First</strong><br><br>
+                    To load and run bots, link your Deriv account.<br>
+                    <a href="{{ url_for('dashboard') }}" class="connect-btn">Go to Dashboard & Connect</a>
+                </div>
+            {% endif %}
+
+            <div class="status-bar">
+                <span class="status-text">Bot Status: Not Running</span>
+                <button class="run-btn">Run</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
